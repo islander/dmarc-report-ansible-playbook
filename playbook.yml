@@ -1,0 +1,125 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    location_path: dmarc
+    web_root: /var/www/html
+    parser_root: /srv/dmarcts
+  tasks:
+    - name: install common packages
+      apt:
+        pkg: [
+          vim,
+          git,
+          htop
+        ]
+        state: present
+
+    - name: install database and ansible mysql support
+      apt:
+        pkg: [
+          mariadb-server,
+          python-mysqldb
+        ]
+        state: present
+
+    - name: create db
+      mysql_db:
+        name: dmarc
+        state: present
+
+    - name: Create db user
+      mysql_user:
+        name: dmarc
+        password: dmarc
+        priv: 'dmarc.*:ALL'
+        state: present
+
+    - name: config mariadb
+      blockinfile:
+        path: /etc/mysql/mariadb.conf.d/50-server.cnf
+        insertafter: "\\[mysqld\\]"
+        block: |
+          innodb_large_prefix	= on
+          innodb_file_format	= barracuda
+          innodb_file_per_table	= true
+        marker: '# {mark} ANSIBLE MANAGED BLOCK'
+      notify: restart mysql
+
+    - name: install dmarc required packages
+      apt:
+        pkg: [
+          libmail-imapclient-perl,
+          libmime-tools-perl,
+          libxml-simple-perl,
+          libclass-dbi-mysql-perl,
+          libio-socket-inet6-perl,
+          libio-socket-ip-perl,
+          libperlio-gzip-perl,
+          libmail-mbox-messageparser-perl,
+          unzip,
+        ]
+        state: present
+
+    - name: clone repo
+      git:
+        repo: https://github.com/techsneeze/dmarcts-report-parser.git
+        dest: "{{ parser_root }}"
+
+    - name: create dmarcts config
+      copy:
+        src: "{{ parser_root }}/dmarcts-report-parser.conf.sample"
+        dest: "{{ parser_root }}/dmarcts-report-parser.conf"
+        remote_src: yes
+
+    - name: replace pass
+      replace:
+        path: "{{ parser_root }}/dmarcts-report-parser.conf"
+        regexp: "dbpass = .*;"
+        replace: "dbpass = 'dmarc';"
+
+    - name:
+      apt:
+        pkg: [
+          apache2,
+          libapache2-mod-php,
+          php-mysql
+        ]
+
+    - name: clone report viewer
+      git:
+        repo: https://github.com/techsneeze/dmarcts-report-viewer.git
+        dest: "{{ web_root }}/{{ location_path }}"
+
+    - name: init reports config
+      copy:
+        src: "{{ web_root }}/{{ location_path }}/dmarcts-report-viewer-config.php.sample"
+        dest: "{{ web_root }}/{{ location_path }}/dmarcts-report-viewer-config.php"
+
+    - name: replace reports pass
+      replace:
+        path: "{{ web_root }}/{{ location_path }}/dmarcts-report-viewer-config.php"
+        regexp: "dbpass=.*;"
+        replace: "dbpass=\"dmarc\";"
+
+    - name: config apache2 location
+      blockinfile:
+        path: /etc/apache2/sites-enabled/000-default.conf
+        insertbefore: "</VirtualHost>"
+        block: |2
+          	<Location "/{{ location_path }}">
+          	  DirectoryIndex dmarcts-report-viewer.php
+          	</Location>
+        marker: '# {mark} ANSIBLE MANAGED BLOCK'
+      notify: restart apache2
+
+  handlers:
+    - name: restart mysql
+      systemd:
+        name: mariadb
+        state: restarted
+
+    - name: restart apache2
+      systemd:
+        name: apache2
+        state: restarted
