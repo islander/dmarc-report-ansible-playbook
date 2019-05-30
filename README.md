@@ -45,7 +45,7 @@ Restart service:
 
 ## DNS configuration
 
-Add SPF, DMIM and DMARC DNS records to your name server according to your setup.
+Add SPF, DKIM and DMARC DNS records to your name server according to your setup.
 
 DKIM `p=` value should be content of your `example.com.pub` without whitespaces and header and footer:
 
