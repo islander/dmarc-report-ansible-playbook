@@ -4,7 +4,7 @@ DMARC parser and report viewer ansible playbook.
 
 Powered by [parser](https://github.com/techsneeze/dmarcts-report-parser.git) and [viewer](https://github.com/techsneeze/dmarcts-report-viewer.git).
 
-# Mail server DMARC config
+## Mail server DMARC config
 
 Below is example for Exim4, if you use another server, examine it's documentation.
 
@@ -43,7 +43,7 @@ Restart service:
 # systemctl restart exim
 ```
 
-# DNS configuration
+## DNS configuration
 
 Add SPF, DMIM and DMARC DNS records to your name server according to your setup.
 
