@@ -49,6 +49,7 @@
     - name: install dmarc required packages
       apt:
         pkg: [
+          libfile-mimeinfo-perl,
           libmail-imapclient-perl,
           libmime-tools-perl,
           libxml-simple-perl,
